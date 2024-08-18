@@ -1,0 +1,1 @@
+W,L = map(int, input().split())
