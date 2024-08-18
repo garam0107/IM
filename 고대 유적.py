@@ -34,3 +34,5 @@ for tc in range(1,T+1):
     array = [list(map(int, input().split())) for _ in range(N)]
     answer = max(ruins(array,N,M), ruins2(array,N,M))
     print(f'#{tc} {answer}')
+
+    #
