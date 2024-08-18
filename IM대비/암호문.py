@@ -1,23 +1,27 @@
-def my_insert(origin, ins):
+T = 10
+for tc in range(1, T+1):
+    N = int(input())
+    arr = [[0]*N for _ in range(N)]
+    num = list(range(1,N^2+1))
+    counts = 1
+    row = 0
+    col = 0
+    dr = [0,1,0,-1]
+    dc = [1,0,-1,0]
+    arr[row][col] = 1
+    while counts < N ** 2:
+        for idx in range(4):
+            nr = row + dr[idx]
+            nc = col + dc[idx]
+            if 0 <= nr < N and 0 <= nc < N:
+                if arr[nr][nc] == 0:
+                    counts += 1
+                    arr[nr][nc] = counts
+                    row = nr
+                    col = nc
+                    break
 
-    pass
-def my_del(origin, d):
-    pass
 
-len_password = int(input())
-origin_password = list(map(int, input().split()))
-count_command = int(input())
-command = list(input().split())
-ins = []
-d = []
-for i in range(len(command)):
-    if command[i] == 'I':
-        ins.append(command[i+1])
-        ins.append(command[i+2])
-        for idx in range(1, int(command[i+2]) + 1):
-            ins.append(command[i+2+idx])
-    elif command[i] == 'D':
-        d.append(command[i+1])
-        d.append(command[i+2])
-
-
+    print(f'#{tc}')
+    for i in arr:
+        print(*i)
