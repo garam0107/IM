@@ -1,133 +1,108 @@
-from collections import deque
-from libs._bridge import init, submit, close
+from collections import deque  # deque를 사용하기 위해 import
 
-NICKNAME = '기본코드'
-game_data = init(NICKNAME)
+# 상하좌우 방향을 정의하는 리스트
+dx = [-1, 0, 1, 0]  # 상, 우, 하, 좌의 x좌표 변화량
+dy = [0, 1, 0, -1]  # 상, 우, 하, 좌의 y좌표 변화량
 
+# 0, 1, 2, 3
+direction_mapping = ['U', 'R', 'D', 'L']  # 방향을 문자로 매핑
 
-# 입력 데이터 분류
-char_to_int = {'U': 0, 'R': 1, 'D': 2, 'L': 3}
-map_data = [[]]  # 맵 정보. 예) map_data[0][1] - [0, 1]의 지형/지물
-allies = {}  # 아군 정보. 예) allies['A'] - 플레이어 본인의 정보
-enemies = {}  # 적군 정보. 예) enemies['X'] - 적 포탑의 정보
-codes = []  # 주어진 암호문. 예) codes[0] - 첫 번째 암호문
+def bfs(my_position, target_position):
+    # 방문 여부를 기록하기 위한 4차원 배열 생성
+    visited = [[[False] * 4  for _ in range(N)] for _ in range(N)]
+    q = deque()  # BFS에 사용할 큐 초기화
+    x, y = my_position  # 내 현재 위치를 unpack
+    q.append((x, y, 0,[]))  # 큐에 현재 위치, 방향, 이동 횟수, 남은 폭탄 횟수, 경로를 추가
+    visited[x][y][0] = True  # 현재 위치를 방문했다고 표시
 
-# 입력 데이터를 파싱하여 변수에 저장
-def parse_data(game_data):
-    # 입력 데이터를 행으로 나누기
-    game_data_rows = game_data.split('\n')
-    row_index = 0
+    # BFS 루프 시작
+    while q:
+        # 큐에서 현재 위치, 방향, 이동 횟수, 남은 폭탄 횟수, 경로를 가져옴
+        x, y, dir, path = q.popleft()
+        nx = x + dx[dir]  # 다음 x좌표 계산
+        ny = y + dy[dir]  # 다음 y좌표 계산
 
-    # 첫 번째 행 데이터 읽기
-    header = game_data_rows[row_index].split(' ')
-    map_height = int(header[0])  # 맵의 세로 크기
-    map_width = int(header[1])  # 맵의 가로 크기
-    num_of_allies = int(header[2])  # 아군의 수
-    num_of_enemies = int(header[3])  # 적군의 수
-    num_of_codes = int(header[4])  # 암호문의 수
-    row_index += 1
+        # 만약 다음 위치가 목표 위치라면
+        if [nx, ny] == target_position:
+            path.append((direction_mapping[dir], 'F'))  # 도달 시 'F' 추가
+            return path  # 최종 경로 반환
 
-    # 기존의 맵 정보를 초기화하고 다시 읽어오기
-    map_data.clear()
-    map_data.extend([[ '' for c in range(map_width)] for r in range(map_height)])
-    for i in range(0, map_height):
-        col = game_data_rows[row_index + i].split(' ')
-        for j in range(0, map_width):
-            map_data[i][j] = col[j]
-    row_index += map_height
+        # 맵의 범위를 체크하고
+        if 0 <= nx < N and 0 <= ny < N:
+            # 다음 위치가 'G'인 경우 (이동 가능 구역)
+            if map_data[nx][ny] == 'G' and not visited[nx][ny][dir]:
+                visited[nx][ny][dir] = True  # 방문 기록
+                # 다음 위치, 방향, 이동 횟수, 남은 폭탄 횟수, 경로 추가
+                q.append((nx, ny, dir, path + [(direction_mapping[dir], 'A')]))  # 'A' 추가
 
-    # 기존의 아군 정보를 초기화하고 다시 읽어오기
-    allies.clear()
-    for i in range(row_index, row_index + num_of_allies):
-        ally = game_data_rows[i].split(' ')
-        ally_name = ally.pop(0)
-        allies[ally_name] = ally
-    row_index += num_of_allies
+            # 'X'인 경우 (폭탄을 사용해야 하는 구역)
+            # elif map_data[nx][ny] == 'X' and cnt > 0 and not visited[nx][ny][dir][cnt - 1]:
+            #     print(1)
+            #     visited[nx][ny][dir][cnt - 1] = True  # 방문 기록
+            #     q.append((nx, ny, dir, moves + 1, cnt - 1, path + [(direction_mapping[dir], (nx, ny), 'A')]))  # 'A' 추가
 
-    # 기존의 적군 정보를 초기화하고 다시 읽어오기
-    enemies.clear()
-    for i in range(row_index, row_index + num_of_enemies):
-        enemy = game_data_rows[i].split(' ')
-        enemy_name = enemy.pop(0)
-        enemies[enemy_name] = enemy
-    row_index += num_of_enemies
+        # 방향을 바꾸는 경우: 왼쪽 회전
+        nd = (dir - 1) % 4
+        if not visited[x][y][nd]:  # 아직 방문하지 않았다면
+            visited[x][y][nd] = True  # 방문 기록
+            q.append((x, y, nd, path))  # 방향만 바꾸고 현재 위치에 추가
 
-    # 기존의 암호문 정보를 초기화하고 다시 읽어오기
-    codes.clear()
-    for i in range(row_index, row_index + num_of_codes):
-        codes.append(game_data_rows[i])
+        # 방향을 바꾸는 경우: 오른쪽 회전
+        nd = (dir + 1) % 4
+        if not visited[x][y][nd]:  # 아직 방문하지 않았다면
+            visited[x][y][nd] = True  # 방문 기록
+            q.append((x, y, nd, path))  # 방향만 바꾸고 현재 위치에 추가
 
+    return []  # 경로를 찾지 못한 경우 빈 리스트 반환
 
-def find_position(map_data, target):
-    position= []
-    for i in range(len(map_data)):
-        for j in range(len(map_data)):
-            if map_data[i][j] == target:
-                position.append((i,j))
-                return position
+# 테스트 케이스 수 입력
+T = int(input())
+for tc in range(1, T + 1):
+    # 맵의 크기(N)와 폭탄의 개수(K) 입력
+    N= int(input())
+    # 맵 데이터 입력
+    map_data = [list(input().split()) for _ in range(N)]
 
+    # 아군('A')와 목표('X')의 위치 찾기
+    for x in range(N):
+        for y in range(N):
+            if map_data[x][y] == 'A':
+                my_position = [x, y]  # 아군 위치 저장
+            elif map_data[x][y] == 'X':
+                target_position = [x, y]  # 목표 위치 저장
 
-# while 반복문: 배틀싸피 메인 프로그램과 클라이언트(이 코드)가 데이터를 계속해서 주고받는 부분
-while game_data is not None:
-    # 자기 차례가 되어 받은 게임정보를 파싱
-    print(f'----입력데이터----\n{game_data}\n----------------')
-    parse_data(game_data)
+    # BFS를 호출하여 경로 찾기
+    path = bfs(my_position, target_position)
 
-    # 파싱한 데이터를 화면에 출력하여 확인
-    print(f'\n[맵 정보] ({len(map_data)} x {len(map_data[0])})')
-    for i in range(len(map_data)):
-        for j in range(len(map_data[i])):
-            print(f'{map_data[i][j]} ', end='')
-        print()
-
-    print(f'\n[아군 정보] (아군 수: {len(allies)})')
-    for k, v in allies.items():
-        if k == 'A':
-            print(f'A (내 탱크) - 체력: {v[0]}, 방향: {v[1]}, 보유한 일반 포탄: {v[2]}개, 보유한 대전차 포탄: {v[3]}개')
-        elif k == 'H':
-            print(f'H (아군 포탑) - 체력: {v[0]}')
-        else:
-            print(f'{k} (아군 탱크) - 체력: {v[0]}')
-
-    print(f'\n[적군 정보] (적군 수: {len(allies)})')
-    for k, v in enemies.items():
-        if k == 'X':
-            print(f'H (적군 포탑) - 체력: {v[0]}')
-        else:
-            print(f'{k} (적군 탱크) - 체력: {v[0]}')
-
-    print(f'\n[암호문 정보] (암호문 수: {len(codes)})')
-    for i in range(len(codes)):
-        print(codes[i])
-
-
-    # 탱크의 동작을 결정하기 위한 알고리즘을 구현하고 원하는 커맨드를 output 변수에 담기
-    # 코드 구현 예시: '아래쪽으로 전진'하되, 아래쪽이 지나갈 수 있는 길이 아니라면 '오른쪽로 전진'하라
-    A = find_position(map_data,'A')
-    B = find_position(map_data,'X')
-    C = find_position(map_data,'E')
-
-    output = 'S'  # 알고리즘 결괏값이 없을 경우를 대비하여 초기값을 S로 설정
-
-    my_position = [-1, -1]
-    for i in range(len(map_data)):
-        for j in range(len(map_data[0])):
-            if map_data[i][j] == 'A':
-                my_position[0] = i
-                my_position[1] = j
-                break
-        if my_position[0] > 0: break
-
-    if my_position[0] < len(map_data) - 1 and map_data[my_position[0] + 1][my_position[1]] == 'G':
-        output = 'D A'
-    else:
-        output = 'R A'
+    # 결과 출력
+    print(f'#{tc} {len(path)}')  # 테스트 케이스 번호와 경로의 길이 출력
+    print(path)  # 경로 출력
+    for command, action in path:
+        print(f'{command} {action}')  # 각 이동에 대해 명령과 위치 출력
+# while game_data is not None:
+#     parse_data(game_data)
+#
+#     my_position = [-1, -1]
+#     for i in range(len(map_data)):
+#         for j in range(len(map_data[0])):
+#             if map_data[i][j] == 'A':
+#                 my_position = [i, j]
+#             elif map_data[i][j] == 'X':
+#                 target_position = [i, j]
+#
+#
+#     path = bfs(my_position, target_position, 1)
+#
+#
+#     output = ''
+#     if path:
+#         for command, position, action in path:
+#             output += f'{command} {action} '
+#
+#     if not output:
+#         output = 'S'  # 알고리즘 결괏값이 없을 경우를 대비하여 초기값을 S로 설정
+#
+#     print(f'----출력----\n{output}\n--------------')
+#     game_data = submit(output)
 
 
-    # while 문의 끝에는 다음 코드가 필수로 존재하여야 함
-    # output에 담긴 값은 submit 함수를 통해 배틀싸피 메인 프로그램에 전달
-    game_data = submit(output)
-
-
-# 반복문을 빠져나왔을 때 배틀싸피 메인 프로그램과의 연결을 완전히 해제하기 위해 close 함수 호출
-close()
